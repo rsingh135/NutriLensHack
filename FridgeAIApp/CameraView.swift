@@ -1,0 +1,102 @@
+//
+//  CameraView.swift
+//  FridgeAIApp
+//
+//  Created by Ranveer Singh on 3/28/25.
+//
+
+import SwiftUI
+import AVFoundation
+
+struct CameraView: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.presentationMode) var presentationMode
+    @State private var showError = false
+    @State private var errorMessage = ""
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        print("Creating camera view controller")
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .camera
+        
+        // Check if camera is available
+        if !UIImagePickerController.isSourceTypeAvailable(.camera) {
+            print("Camera is not available")
+            errorMessage = "Camera is not available on this device"
+            showError = true
+            return picker
+        }
+        
+        // Check camera authorization status
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            print("Camera is authorized")
+            return picker
+        case .notDetermined:
+            print("Requesting camera authorization")
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                if !granted {
+                    print("Camera access denied")
+                    errorMessage = "Camera access is required to take photos"
+                    showError = true
+                }
+            }
+            return picker
+        case .denied, .restricted:
+            print("Camera access denied or restricted")
+            errorMessage = "Please enable camera access in Settings"
+            showError = true
+            return picker
+        @unknown default:
+            print("Unknown camera authorization status")
+            errorMessage = "Unknown camera authorization status"
+            showError = true
+            return picker
+        }
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraView
+        
+        init(_ parent: CameraView) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            print("Image picker finished picking media")
+            if let image = info[.originalImage] as? UIImage {
+                print("Successfully captured image")
+                parent.image = image
+            } else {
+                print("Failed to get image from picker")
+            }
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            print("Image picker cancelled")
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFailWithError error: Error) {
+            print("Image picker failed with error: \(error)")
+            parent.errorMessage = "Failed to capture image: \(error.localizedDescription)"
+            parent.showError = true
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+    }
+}
+
+// Preview provider for SwiftUI canvas
+struct CameraView_Previews: PreviewProvider {
+    static var previews: some View {
+        CameraView(image: .constant(nil))
+    }
+}

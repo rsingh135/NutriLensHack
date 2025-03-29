@@ -5,7 +5,7 @@ struct Theme {
     static let secondary = Color("SageGreen")
     static let accent = Color("DarkGreen")
     static let background = Color("LightMint")
-    static let text = Color("Black")
+    static let text = Color("BlackTextColor")
     
     static let cardBackground = Color.white
     static let shadowColor = Color.black.opacity(0.1)

@@ -24,6 +24,9 @@ class FridgeViewModel: NSObject, ObservableObject {
     @Published var errorMessage: String?
     @Published var isSustainableMode = false
     @Published var isSpeaking = false
+    @Published var workoutRecommendation: WorkoutRecommendation?
+    @Published var showingRecipeSelection = false
+    @Published var isGeneratingWorkout = false
     
     override init() {
         // Initialize with API key from Secrets.swift
@@ -49,7 +52,18 @@ class FridgeViewModel: NSObject, ObservableObject {
                 recipes = try await geminiService.generateRecipes(ingredients: detectedIngredients)
                 
                 if isSustainableMode {
-                    recipes.sort { $0.carbonFootprint < $1.carbonFootprint }
+                    // Sort recipes based on both carbon footprint and expiration
+                    recipes.sort { recipe1, recipe2 in
+                        // First, prioritize recipes with ingredients close to expiring
+                        if recipe1.expirationInfo.daysUntilExpiration <= 3 && recipe2.expirationInfo.daysUntilExpiration > 3 {
+                            return true
+                        } else if recipe2.expirationInfo.daysUntilExpiration <= 3 && recipe1.expirationInfo.daysUntilExpiration > 3 {
+                            return false
+                        }
+                        
+                        // Then, consider carbon footprint
+                        return recipe1.carbonFootprint < recipe2.carbonFootprint
+                    }
                 }
                 
                 isAnalyzing = false
@@ -106,6 +120,21 @@ class FridgeViewModel: NSObject, ObservableObject {
         speechSynthesizer.stopSpeaking(at: .immediate)
         isSpeaking = false
     }
+    
+    func generateWorkoutRecommendation(for recipe: Recipe) {
+        isGeneratingWorkout = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                workoutRecommendation = try await geminiService.generateWorkoutRecommendation(for: recipe)
+                isGeneratingWorkout = false
+            } catch {
+                errorMessage = "Error generating workout recommendation: \(error.localizedDescription)"
+                isGeneratingWorkout = false
+            }
+        }
+    }
 }
 
 extension FridgeViewModel: AVSpeechSynthesizerDelegate {
@@ -126,12 +155,4 @@ extension FridgeViewModel: AVSpeechSynthesizerDelegate {
             self.isSpeaking = false
         }
     }
-}
-
-struct WorkoutRecommendation: Codable {
-    let calories: Double
-    let walking: String
-    let running: String
-    let cycling: String
-    let swimming: String
 } 

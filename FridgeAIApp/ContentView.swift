@@ -28,7 +28,7 @@ struct ContentView: View {
                 }
                 .tag(1)
             
-            WorkoutsTabView()
+            WorkoutsView(viewModel: viewModel)
                 .tabItem {
                     Label("Workouts", systemImage: "figure.run")
                 }
@@ -183,20 +183,8 @@ struct RecipesTabView: View {
     }
 }
 
-struct WorkoutsTabView: View {
-    var body: some View {
-        NavigationView {
-            WorkoutsView()
-                .navigationTitle("Workouts")
-                .navigationBarTitleDisplayMode(.large)
-                .toolbarColorScheme(.light, for: .navigationBar)
-                .toolbarBackground(Theme.background, for: .navigationBar)
-                .toolbarBackground(.visible, for: .navigationBar)
-        }
-    }
-}
-
 struct WorkoutsView: View {
+    @ObservedObject var viewModel: FridgeViewModel
     @State private var selectedWorkoutType = "All"
     let workoutTypes = ["All", "Running", "Cycling", "Swimming", "Walking"]
     
@@ -215,6 +203,32 @@ struct WorkoutsView: View {
                 // Weekly Progress Card
                 WeeklyProgressCard()
                 
+                // Recipe-based Workout Recommendation
+                if let recommendation = viewModel.workoutRecommendation {
+                    WorkoutRecommendationView(recommendation: recommendation)
+                }
+                
+                // Add Workout Button
+                Button(action: {
+                    viewModel.showingRecipeSelection = true
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Generate Workout from Recipe")
+                    }
+                    .primaryButton()
+                }
+                .padding(.horizontal)
+                
+                if viewModel.isGeneratingWorkout {
+                    ProgressView("Generating workout recommendation...")
+                        .padding()
+                }
+                
+                if let error = viewModel.errorMessage {
+                    ErrorMessageView(message: error)
+                }
+                
                 // Recent Workouts
                 RecentWorkoutsSection()
                 
@@ -228,12 +242,15 @@ struct WorkoutsView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
-                    // Add new workout action
+                    viewModel.showingRecipeSelection = true
                 }) {
                     Image(systemName: "plus.circle.fill")
                         .foregroundColor(Theme.primary)
                 }
             }
+        }
+        .sheet(isPresented: $viewModel.showingRecipeSelection) {
+            RecipeSelectionView(viewModel: viewModel)
         }
     }
 }
@@ -358,6 +375,129 @@ struct StatCard: View {
         .padding()
         .background(Theme.primary.opacity(0.1))
         .cornerRadius(15)
+    }
+}
+
+struct WorkoutRecommendationView: View {
+    let recommendation: WorkoutRecommendation
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("Workout Recommendation")
+                .font(.title2)
+                .bold()
+                .foregroundColor(Theme.text)
+            
+            Text("To burn off \(recommendation.caloriesToBurn) calories from \(recommendation.recipeName)")
+                .foregroundColor(Theme.text)
+            
+            ForEach(recommendation.workouts) { workout in
+                WorkoutOptionCard(workout: workout)
+            }
+        }
+        .padding()
+        .background(Theme.background)
+        .cornerRadius(15)
+        .padding(.horizontal)
+    }
+}
+
+struct WorkoutOptionCard: View {
+    let workout: WorkoutOption
+    
+    var body: some View {
+        HStack {
+            Image(systemName: workout.type.icon)
+                .font(.title2)
+                .foregroundColor(Theme.primary)
+                .frame(width: 40)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(workout.type.rawValue.capitalized)
+                    .font(.headline)
+                    .foregroundColor(Theme.text)
+                
+                Text(workout.description)
+                    .font(.subheadline)
+                    .foregroundColor(Theme.text)
+                
+                HStack {
+                    Image(systemName: "clock.fill")
+                    Text("\(workout.duration) min")
+                    Spacer()
+                    Image(systemName: "flame.fill")
+                    Text("\(workout.caloriesBurned) cal")
+                }
+                .font(.caption)
+                .foregroundColor(Theme.accent)
+            }
+        }
+        .padding()
+        .background(Theme.primary.opacity(0.1))
+        .cornerRadius(10)
+    }
+}
+
+struct RecipeSelectionView: View {
+    @ObservedObject var viewModel: FridgeViewModel
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            List {
+                Section(header: Text("Recent Recipes")) {
+                    ForEach(viewModel.recipes) { recipe in
+                        Button(action: {
+                            viewModel.generateWorkoutRecommendation(for: recipe)
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(recipe.name)
+                                        .foregroundColor(Theme.text)
+                                    Text("\(recipe.calories) calories")
+                                        .font(.caption)
+                                        .foregroundColor(Theme.accent)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(Theme.primary)
+                            }
+                        }
+                    }
+                }
+                
+                Section(header: Text("Favorite Recipes")) {
+                    ForEach(viewModel.favoriteRecipes) { recipe in
+                        Button(action: {
+                            viewModel.generateWorkoutRecommendation(for: recipe)
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(recipe.name)
+                                        .foregroundColor(Theme.text)
+                                    Text("\(recipe.calories) calories")
+                                        .font(.caption)
+                                        .foregroundColor(Theme.accent)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(Theme.primary)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Select Recipe")
+            .navigationBarItems(trailing: Button("Cancel") {
+                presentationMode.wrappedValue.dismiss()
+            })
+        }
     }
 }
 

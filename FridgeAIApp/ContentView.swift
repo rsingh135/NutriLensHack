@@ -78,7 +78,7 @@ struct HomeTabView: View {
                 .padding(.vertical)
             }
             .background(Theme.background)
-            .navigationTitle("FridgeAI")
+            .navigationTitle("NutriLens")
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.light, for: .navigationBar)
             .toolbarBackground(Theme.background, for: .navigationBar)
@@ -189,77 +189,80 @@ struct WorkoutsView: View {
     let workoutTypes = ["All", "Running", "Cycling", "Walking"]
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Workout Type Picker
-                Picker("Workout Type", selection: $selectedWorkoutType) {
-                    ForEach(workoutTypes, id: \.self) { type in
-                        Text(type).tag(type)
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Workout Type Picker
+                    Picker("Workout Type", selection: $selectedWorkoutType) {
+                        ForEach(workoutTypes, id: \.self) { type in
+                            Text(type).tag(type)
+                        }
                     }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding(.horizontal)
+                    
+                    // Weekly Progress Card
+                    WeeklyProgressCard(progress: viewModel.getWeeklyProgress())
+                    
+                    // Recipe-based Workout Recommendation
+                    if let recommendation = viewModel.workoutRecommendation {
+                        WorkoutRecommendationView(recommendation: recommendation, viewModel: viewModel)
+                    } else if viewModel.savedWorkouts.isEmpty {
+                        // Show placeholder workouts only when there are no saved workouts
+                        PlaceholderWorkoutsSection()
+                    }
+                    
+                    // Add Workout Button
+                    Button(action: {
+                        viewModel.showingRecipeSelection = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Generate Workout from Recipe")
+                        }
+                        .primaryButton()
+                    }
+                    .padding(.horizontal)
+                    
+                    if viewModel.isGeneratingWorkout {
+                        ProgressView("Generating workout recommendation...")
+                            .padding()
+                    }
+                    
+                    if let error = viewModel.errorMessage {
+                        ErrorMessageView(message: error)
+                    }
+                    
+                    // Saved Workouts Section
+                    if !viewModel.savedWorkouts.isEmpty {
+                        SavedWorkoutsSection(
+                            title: selectedWorkoutType == "All" ? "All Workouts" : "\(selectedWorkoutType) Workouts",
+                            workouts: selectedWorkoutType == "All" ? viewModel.savedWorkouts : viewModel.getWorkoutsForType(WorkoutType(rawValue: selectedWorkoutType.lowercased()) ?? .walking),
+                            viewModel: viewModel
+                        )
+                    }
+                    
+                    // Workout Stats
+                    WorkoutStatsSection(stats: viewModel.getMonthlyStats())
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding(.horizontal)
-                
-                // Weekly Progress Card
-                WeeklyProgressCard(progress: viewModel.getWeeklyProgress())
-                
-                // Recipe-based Workout Recommendation
-                if let recommendation = viewModel.workoutRecommendation {
-                    WorkoutRecommendationView(recommendation: recommendation, viewModel: viewModel)
-                } else if viewModel.savedWorkouts.isEmpty {
-                    // Show placeholder workouts only when there are no saved workouts
-                    PlaceholderWorkoutsSection()
-                }
-                
-                // Add Workout Button
-                Button(action: {
-                    viewModel.showingRecipeSelection = true
-                }) {
-                    HStack {
+                .padding(.vertical)
+            }
+            .background(Theme.background)
+            .navigationTitle("Workouts")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        viewModel.showingRecipeSelection = true
+                    }) {
                         Image(systemName: "plus.circle.fill")
-                        Text("Generate Workout from Recipe")
+                            .foregroundColor(Theme.primary)
                     }
-                    .primaryButton()
-                }
-                .padding(.horizontal)
-                
-                if viewModel.isGeneratingWorkout {
-                    ProgressView("Generating workout recommendation...")
-                        .padding()
-                }
-                
-                if let error = viewModel.errorMessage {
-                    ErrorMessageView(message: error)
-                }
-                
-                // Saved Workouts Section
-                if !viewModel.savedWorkouts.isEmpty {
-                    SavedWorkoutsSection(
-                        title: selectedWorkoutType == "All" ? "All Workouts" : "\(selectedWorkoutType) Workouts",
-                        workouts: selectedWorkoutType == "All" ? viewModel.savedWorkouts : viewModel.getWorkoutsForType(WorkoutType(rawValue: selectedWorkoutType.lowercased()) ?? .walking),
-                        viewModel: viewModel
-                    )
-                }
-                
-                // Workout Stats
-                WorkoutStatsSection(stats: viewModel.getMonthlyStats())
-            }
-            .padding(.vertical)
-        }
-        .background(Theme.background)
-        .navigationTitle("Workouts")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    viewModel.showingRecipeSelection = true
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .foregroundColor(Theme.primary)
                 }
             }
-        }
-        .sheet(isPresented: $viewModel.showingRecipeSelection) {
-            RecipeSelectionView(viewModel: viewModel)
+            .sheet(isPresented: $viewModel.showingRecipeSelection) {
+                RecipeSelectionView(viewModel: viewModel)
+            }
         }
     }
 }

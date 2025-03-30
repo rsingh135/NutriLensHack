@@ -49,7 +49,7 @@ class FridgeViewModel: NSObject, ObservableObject {
         guard let image = fridgeImage else { return }
         isAnalyzing = true
         
-        // Create a context string that includes health profile information
+        // Gives context with health profile information
         var contextString = "Analyze this image of fridge contents"
         if let profile = userHealthProfile {
             contextString += " considering the following dietary preferences: \(profile.dietaryPreferences.joined(separator: ", "))"
@@ -75,14 +75,14 @@ class FridgeViewModel: NSObject, ObservableObject {
                 if isSustainableMode {
                     // Sort recipes based on both carbon footprint and expiration
                     recipes.sort { recipe1, recipe2 in
-                        // First, prioritize recipes with ingredients close to expiring
+                        // sort by expiration
                         if recipe1.expirationInfo.daysUntilExpiration <= 3 && recipe2.expirationInfo.daysUntilExpiration > 3 {
                             return true
                         } else if recipe2.expirationInfo.daysUntilExpiration <= 3 && recipe1.expirationInfo.daysUntilExpiration > 3 {
                             return false
                         }
                         
-                        // Then, consider carbon footprint
+                        // sort by carbon footprint
                         return recipe1.carbonFootprint < recipe2.carbonFootprint
                     }
                 }
@@ -96,12 +96,14 @@ class FridgeViewModel: NSObject, ObservableObject {
     }
     
     func toggleFavorite(_ recipe: Recipe) {
-        if let index = favoriteRecipes.firstIndex(where: { $0.id == recipe.id }) {
-            favoriteRecipes.remove(at: index)
-        } else {
-            favoriteRecipes.append(recipe)
+        Task { @MainActor in
+            if let index = favoriteRecipes.firstIndex(where: { $0.id == recipe.id }) {
+                favoriteRecipes.remove(at: index)
+            } else {
+                favoriteRecipes.append(recipe)
+            }
+            saveFavorites()
         }
-        saveFavorites()
     }
     
     func isFavorite(_ recipe: Recipe) -> Bool {
@@ -158,21 +160,25 @@ class FridgeViewModel: NSObject, ObservableObject {
     }
     
     func saveWorkout(_ workout: WorkoutOption) {
-        var updatedWorkout = workout
-        updatedWorkout.isCompleted = true
-        updatedWorkout.completedDate = Date()
-        savedWorkouts.append(updatedWorkout)
-        saveSavedWorkouts()
-        updateWeeklyProgress()
-        // Clear the workout recommendation after saving
-        workoutRecommendation = nil
+        Task { @MainActor in
+            var updatedWorkout = workout
+            updatedWorkout.isCompleted = true
+            updatedWorkout.completedDate = Date()
+            savedWorkouts.append(updatedWorkout)
+            saveSavedWorkouts()
+            updateWeeklyProgress()
+            // Resets recommendations
+            workoutRecommendation = nil
+        }
     }
     
     func deleteWorkout(_ workout: WorkoutOption) {
-        if let index = savedWorkouts.firstIndex(where: { $0.id == workout.id }) {
-            savedWorkouts.remove(at: index)
-            saveSavedWorkouts()
-            updateWeeklyProgress()
+        Task { @MainActor in
+            if let index = savedWorkouts.firstIndex(where: { $0.id == workout.id }) {
+                savedWorkouts.remove(at: index)
+                saveSavedWorkouts()
+                updateWeeklyProgress()
+            }
         }
     }
     
@@ -198,7 +204,7 @@ class FridgeViewModel: NSObject, ObservableObject {
         let totalCalories = savedWorkouts.reduce(0) { $0 + $1.caloriesBurned }
         let totalMinutes = savedWorkouts.reduce(0) { $0 + $1.duration }
         
-        // Calculate distance based on workout types
+        // Keep total distance tracked at bottom
         let totalDistance = savedWorkouts.reduce(0.0) { total, workout in
             let speed: Double
             switch workout.type {
@@ -230,12 +236,13 @@ class FridgeViewModel: NSObject, ObservableObject {
     }
     
     private func updateWeeklyProgress() {
-        // This will trigger a UI update since we're using @Published properties
     }
     
     func updateHealthProfile(_ profile: UserHealthProfile) {
-        userHealthProfile = profile
-        saveHealthProfile()
+        Task { @MainActor in
+            userHealthProfile = profile
+            saveHealthProfile()
+        }
     }
     
     private func loadHealthProfile() {
@@ -252,7 +259,7 @@ class FridgeViewModel: NSObject, ObservableObject {
         }
     }
     
-    // Update recipe suggestions based on health profile
+    // Update recipe suggestions based on user's stats
     func suggestRecipes(for ingredients: [String]) {
         var prompt = "Suggest recipes using these ingredients: \(ingredients.joined(separator: ", "))"
         
@@ -269,7 +276,7 @@ class FridgeViewModel: NSObject, ObservableObject {
             prompt += "\nFocus on sustainable and eco-friendly cooking methods."
         }
         
-        // ... rest of your existing recipe suggestion implementation ...
+      
     }
 }
 

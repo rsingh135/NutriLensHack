@@ -7,6 +7,13 @@
 
 import Foundation
 
+enum Gender: String, Codable, CaseIterable {
+    case male = "male"
+    case female = "female"
+    case other = "other"
+    case preferNotToSay = "prefer not to say"
+}
+
 struct Recipe: Identifiable, Codable {
     let id: UUID
     let name: String
@@ -127,7 +134,7 @@ enum WorkoutType: String, Codable {
 struct UserHealthProfile: Codable {
     var height: Double // in centimeters
     var weight: Double // in kilograms
-    var gender: String // "male", "female", "other", "prefer not to say"
+    var gender: Gender // Using the Gender enum
     var age: Int
     var dietaryPreferences: [String] // e.g., ["vegetarian", "gluten-free"]
     var allergies: [String]
@@ -143,7 +150,7 @@ struct UserHealthProfile: Codable {
     // Default initializer with optional values
     init(height: Double = 170,
          weight: Double = 70,
-         gender: String = "prefer not to say",
+         gender: Gender = .preferNotToSay,
          age: Int = 25,
          dietaryPreferences: [String] = [],
          allergies: [String] = [],

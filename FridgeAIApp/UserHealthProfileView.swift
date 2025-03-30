@@ -4,12 +4,12 @@ struct UserHealthProfileView: View {
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var viewModel: FridgeViewModel
     @State private var healthProfile: UserHealthProfile
-    @State private var selectedDietaryPreferences: Set<String> = []
+    @State private var selectedDietaryPreferences: Set<String>
     @State private var newAllergy: String = ""
     @State private var showingSaveConfirmation = false
-    @State private var heightInInches: Double = 0
-    @State private var weightInPounds: Double = 0
-    @State private var selectedAllergies: Set<String> = []
+    @State private var heightInInches: Double
+    @State private var weightInPounds: Double
+    @State private var selectedAllergies: Set<String>
     @State private var isEditing = false
     
     let commonAllergies = [
@@ -18,205 +18,258 @@ struct UserHealthProfileView: View {
     ]
     
     init(viewModel: FridgeViewModel) {
+        // Initialize the viewModel
         self._viewModel = ObservedObject(wrappedValue: viewModel)
-        self._healthProfile = State(initialValue: viewModel.userHealthProfile ?? UserHealthProfile())
-        if let preferences = viewModel.userHealthProfile?.dietaryPreferences {
-            self._selectedDietaryPreferences = State(initialValue: Set(preferences))
-        }
-        if let profile = viewModel.userHealthProfile {
-            self._heightInInches = State(initialValue: profile.height / 2.54)
-            self._weightInPounds = State(initialValue: profile.weight * 2.20462)
-            self._selectedAllergies = State(initialValue: Set(profile.allergies))
-        }
+        
+        // Get the profile or create a new one
+        let profile = viewModel.userHealthProfile ?? UserHealthProfile()
+        
+        // Initialize state variables one by one
+        let initialHealthProfile = profile
+        let initialDietaryPreferences = Set(profile.dietaryPreferences)
+        let initialHeightInInches = profile.height / 2.54
+        let initialWeightInPounds = profile.weight * 2.20462
+        let initialAllergies = Set(profile.allergies)
+        
+        // Set the state variables
+        self._healthProfile = State(initialValue: initialHealthProfile)
+        self._selectedDietaryPreferences = State(initialValue: initialDietaryPreferences)
+        self._heightInInches = State(initialValue: initialHeightInInches)
+        self._weightInPounds = State(initialValue: initialWeightInPounds)
+        self._selectedAllergies = State(initialValue: initialAllergies)
     }
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Basic Information Section
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Basic Information")
-                            .font(.headline)
-                            .foregroundColor(Theme.text)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 15) {
-                            MetricInputField(
-                                icon: "ruler",
-                                title: "Height",
-                                unit: "inches",
-                                value: $heightInInches,
-                                isDisabled: !isEditing
-                            ) { newValue in
-                                healthProfile.height = newValue * 2.54
-                            }
-                            
-                            MetricInputField(
-                                icon: "scalemass",
-                                title: "Weight",
-                                unit: "lbs",
-                                value: $weightInPounds,
-                                isDisabled: !isEditing
-                            ) { newValue in
-                                healthProfile.weight = newValue / 2.20462
-                            }
-                            
-                            MetricInputField(
-                                icon: "calendar",
-                                title: "Age",
-                                unit: "years",
-                                value: Binding(
-                                    get: { Double(healthProfile.age) },
-                                    set: { healthProfile.age = Int($0) }
-                                ),
-                                isDisabled: !isEditing
-                            )
-                            
-                            GenderSelector(selection: $healthProfile.gender, isDisabled: !isEditing)
-                        }
-                        .padding()
-                        .background(Theme.primary.opacity(0.1))
-                        .cornerRadius(15)
-                        .padding(.horizontal)
-                    }
-                    
-                    // BMI Section
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Health Metrics")
-                            .font(.headline)
-                            .foregroundColor(Theme.text)
-                            .padding(.horizontal)
-                        
-                        HStack {
-                            BMICard(bmi: healthProfile.bmi)
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    // Dietary Preferences Section
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Dietary Preferences")
-                            .font(.headline)
-                            .foregroundColor(Theme.text)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 15) {
-                            ForEach(DietaryPreference.allCases, id: \.self) { preference in
-                                Toggle(isOn: Binding(
-                                    get: { selectedDietaryPreferences.contains(preference.rawValue) },
-                                    set: { isSelected in
-                                        if isSelected {
-                                            selectedDietaryPreferences.insert(preference.rawValue)
-                                        } else {
-                                            selectedDietaryPreferences.remove(preference.rawValue)
-                                        }
-                                        healthProfile.dietaryPreferences = Array(selectedDietaryPreferences)
-                                    }
-                                )) {
-                                    HStack {
-                                        Image(systemName: preference.icon)
-                                            .foregroundColor(Theme.primary)
-                                        Text(preference.rawValue)
-                                            .foregroundColor(Theme.text)
-                                    }
-                                }
-                                .disabled(!isEditing)
-                            }
-                        }
-                        .padding()
-                        .background(Theme.primary.opacity(0.1))
-                        .cornerRadius(15)
-                        .padding(.horizontal)
-                    }
-                    
-                    // Allergies Section
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Allergies")
-                            .font(.headline)
-                            .foregroundColor(Theme.text)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 15) {
-                            ForEach(commonAllergies, id: \.self) { allergy in
-                                Toggle(isOn: Binding(
-                                    get: { selectedAllergies.contains(allergy) },
-                                    set: { isSelected in
-                                        if isSelected {
-                                            selectedAllergies.insert(allergy)
-                                        } else {
-                                            selectedAllergies.remove(allergy)
-                                        }
-                                        healthProfile.allergies = Array(selectedAllergies)
-                                    }
-                                )) {
-                                    Text(allergy)
-                                        .foregroundColor(Theme.text)
-                                }
-                                .disabled(!isEditing)
-                            }
-                            
-                            if isEditing {
-                                HStack {
-                                    TextField("Add custom allergy", text: $newAllergy)
-                                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                                        .foregroundColor(Theme.text)
-                                    
-                                    Button(action: {
-                                        if !newAllergy.isEmpty {
-                                            selectedAllergies.insert(newAllergy)
-                                            healthProfile.allergies = Array(selectedAllergies)
-                                            newAllergy = ""
-                                        }
-                                    }) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .foregroundColor(Theme.primary)
-                                    }
-                                }
-                                .padding(.horizontal)
-                            }
-                        }
-                        .padding()
-                        .background(Theme.primary.opacity(0.1))
-                        .cornerRadius(15)
-                        .padding(.horizontal)
-                    }
-                }
-                .padding(.vertical)
+            mainScrollView
+        }
+    }
+    
+    private var mainScrollView: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                basicInformationSection
+                healthMetricsSection
+                dietaryPreferencesSection
+                allergiesSection
             }
-            .navigationTitle("Health Profile")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                    .foregroundColor(Theme.primary)
+            .padding(.vertical)
+        }
+        .background(Theme.background)
+        .navigationTitle("Health Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                cancelButton
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                editSaveButton
+            }
+        }
+        .alert("Profile Saved", isPresented: $showingSaveConfirmation) {
+            Button("OK") {
+                isEditing = false
+            }
+        } message: {
+            Text("Your health profile has been updated successfully.")
+        }
+    }
+    
+    private var basicInformationSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Basic Information")
+                .font(.headline)
+                .foregroundColor(Theme.text)
+                .padding(.horizontal)
+            
+            VStack(spacing: 15) {
+                MetricInputField(
+                    icon: "ruler",
+                    title: "Height",
+                    unit: "inches",
+                    value: $heightInInches,
+                    isDisabled: !isEditing
+                ) { newValue in
+                    healthProfile.height = newValue * 2.54
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if isEditing {
-                        Button("Save") {
-                            viewModel.updateUserHealthProfile(healthProfile)
-                            showingSaveConfirmation = true
+                MetricInputField(
+                    icon: "scalemass",
+                    title: "Weight",
+                    unit: "lbs",
+                    value: $weightInPounds,
+                    isDisabled: !isEditing
+                ) { newValue in
+                    healthProfile.weight = newValue / 2.20462
+                }
+                
+                MetricInputField(
+                    icon: "calendar",
+                    title: "Age",
+                    unit: "years",
+                    value: Binding(
+                        get: { Double(healthProfile.age) },
+                        set: { healthProfile.age = Int($0) }
+                    ),
+                    isDisabled: !isEditing
+                ) { newValue in
+                    healthProfile.age = Int(newValue)
+                }
+                
+                GenderSelector(
+                    selection: Binding(
+                        get: { healthProfile.gender.rawValue },
+                        set: { newValue in
+                            if let gender = Gender(rawValue: newValue) {
+                                healthProfile.gender = gender
+                            }
                         }
-                        .foregroundColor(Theme.primary)
-                    } else {
-                        Button("Edit") {
-                            isEditing = true
-                        }
-                        .foregroundColor(Theme.primary)
-                    }
+                    ),
+                    isDisabled: !isEditing
+                )
+            }
+            .padding()
+            .background(Theme.primary.opacity(0.1))
+            .cornerRadius(15)
+            .padding(.horizontal)
+        }
+    }
+    
+    private var healthMetricsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Health Metrics")
+                .font(.headline)
+                .foregroundColor(Theme.text)
+                .padding(.horizontal)
+            
+            HStack {
+                BMICard(bmi: healthProfile.bmi)
+                Spacer()
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    private var dietaryPreferencesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Dietary Preferences")
+                .font(.headline)
+                .foregroundColor(Theme.text)
+                .padding(.horizontal)
+            
+            VStack(spacing: 15) {
+                ForEach(DietaryPreference.allCases, id: \.self) { preference in
+                    dietaryPreferenceToggle(for: preference)
                 }
             }
-            .alert("Profile Saved", isPresented: $showingSaveConfirmation) {
-                Button("OK") {
-                    isEditing = false
+            .padding()
+            .background(Theme.primary.opacity(0.1))
+            .cornerRadius(15)
+            .padding(.horizontal)
+        }
+    }
+    
+    private func dietaryPreferenceToggle(for preference: DietaryPreference) -> some View {
+        Toggle(isOn: Binding(
+            get: { selectedDietaryPreferences.contains(preference.rawValue) },
+            set: { isSelected in
+                if isSelected {
+                    selectedDietaryPreferences.insert(preference.rawValue)
+                } else {
+                    selectedDietaryPreferences.remove(preference.rawValue)
                 }
-            } message: {
-                Text("Your health profile has been updated successfully.")
+                healthProfile.dietaryPreferences = Array(selectedDietaryPreferences)
             }
+        )) {
+            HStack {
+                Text(preference.rawValue)
+                    .foregroundColor(Theme.text)
+            }
+        }
+        .disabled(!isEditing)
+    }
+    
+    private var allergiesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Allergies")
+                .font(.headline)
+                .foregroundColor(Theme.text)
+                .padding(.horizontal)
+            
+            VStack(spacing: 15) {
+                ForEach(commonAllergies, id: \.self) { allergy in
+                    allergyToggle(for: allergy)
+                }
+                
+                if isEditing {
+                    addAllergyField
+                }
+            }
+            .padding()
+            .background(Theme.primary.opacity(0.1))
+            .cornerRadius(15)
+            .padding(.horizontal)
+        }
+    }
+    
+    private func allergyToggle(for allergy: String) -> some View {
+        Toggle(isOn: Binding(
+            get: { selectedAllergies.contains(allergy) },
+            set: { isSelected in
+                if isSelected {
+                    selectedAllergies.insert(allergy)
+                } else {
+                    selectedAllergies.remove(allergy)
+                }
+                healthProfile.allergies = Array(selectedAllergies)
+            }
+        )) {
+            Text(allergy)
+                .foregroundColor(Theme.text)
+        }
+        .disabled(!isEditing)
+    }
+    
+    private var addAllergyField: some View {
+        HStack {
+            TextField("Add custom allergy", text: $newAllergy)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .foregroundColor(Theme.text)
+            
+            Button(action: {
+                if !newAllergy.isEmpty {
+                    selectedAllergies.insert(newAllergy)
+                    healthProfile.allergies = Array(selectedAllergies)
+                    newAllergy = ""
+                }
+            }) {
+                Image(systemName: "plus.circle.fill")
+                    .foregroundColor(Theme.primary)
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private var cancelButton: some View {
+        Button("Cancel") {
+            presentationMode.wrappedValue.dismiss()
+        }
+        .foregroundColor(Theme.primary)
+    }
+    
+    private var editSaveButton: some View {
+        if isEditing {
+            return Button("Save") {
+                viewModel.updateHealthProfile(healthProfile)
+                showingSaveConfirmation = true
+            }
+            .foregroundColor(Theme.primary)
+        } else {
+            return Button("Edit") {
+                isEditing = true
+            }
+            .foregroundColor(Theme.primary)
         }
     }
 }
@@ -256,7 +309,7 @@ struct MetricInputField: View {
 }
 
 struct GenderSelector: View {
-    @Binding var selection: Gender
+    @Binding var selection: String
     let isDisabled: Bool
     
     var body: some View {
@@ -273,7 +326,7 @@ struct GenderSelector: View {
             Picker("Gender", selection: $selection) {
                 ForEach(Gender.allCases, id: \.self) { gender in
                     Text(gender.rawValue.capitalized)
-                        .tag(gender)
+                        .tag(gender.rawValue)
                 }
             }
             .pickerStyle(.segmented)

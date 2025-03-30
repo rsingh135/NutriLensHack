@@ -20,8 +20,17 @@ struct CameraView: UIViewControllerRepresentable {
         let picker = UIImagePickerController()
         picker.delegate = context.coordinator
         picker.sourceType = sourceType
+        picker.modalPresentationStyle = .fullScreen
         
-        // Check if source type is available
+        // Camera settings
+        if sourceType == .camera {
+            picker.cameraCaptureMode = .photo
+            picker.cameraDevice = .rear
+            picker.showsCameraControls = true
+            picker.cameraViewTransform = CGAffineTransform(scaleX: 1.0, y: 1.0)
+        }
+        
+        // Source Checker
         if !UIImagePickerController.isSourceTypeAvailable(sourceType) {
             print("Source type is not available")
             errorMessage = "This feature is not available on this device"
@@ -29,7 +38,7 @@ struct CameraView: UIViewControllerRepresentable {
             return picker
         }
         
-        // Check authorization status for camera or photo library
+        // Check authorization to use camera or photo library
         if sourceType == .camera {
             switch AVCaptureDevice.authorizationStatus(for: .video) {
             case .authorized:
@@ -57,7 +66,6 @@ struct CameraView: UIViewControllerRepresentable {
                 return picker
             }
         } else {
-            // For photo library, we'll handle authorization in the coordinator
             return picker
         }
     }

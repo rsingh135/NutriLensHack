@@ -42,6 +42,13 @@ struct ContentView: View {
                         .tabItem {
                             Label("Profile", systemImage: "person.crop.circle")
                         }
+                        .tag(3)
+                    
+                    MapView()
+                        .tabItem {
+                            Label("Map", systemImage: "map")
+                        }
+                        .tag(4)
                 }
                 .sheet(isPresented: $showingCamera) {
                     CameraView(image: $viewModel.fridgeImage, sourceType: .camera)
@@ -75,7 +82,7 @@ struct ContentView: View {
         }
         .onChange(of: isAuthenticated) { _, newValue in
             if newValue && viewModel.userHealthProfile == nil {
-                // Show health profile setup when user first logs in
+                // Health profile should display here
                 viewModel.showingHealthProfile = true
             }
         }
@@ -118,18 +125,6 @@ struct HomeTabView: View {
             .toolbarColorScheme(.light, for: .navigationBar)
             .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        NavigationLink(destination: FavoritesView(viewModel: viewModel)) {
-                            Label("Favorites", systemImage: "heart.fill")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundColor(Theme.primary)
-                    }
-                }
-            }
         }
     }
 }
@@ -203,23 +198,31 @@ struct RecipesTabView: View {
     
     var body: some View {
         NavigationView {
-            List {
-                Section(header: Text("All Recipes")) {
-                    ForEach(viewModel.recipes) { recipe in
-                        RecipeCard(recipe: recipe, viewModel: viewModel)
-                            .onTapGesture {
-                                viewModel.selectedRecipe = recipe
-                            }
-                    }
-                }
+            ZStack {
+                Theme.background
+                    .ignoresSafeArea()
                 
-                Section(header: Text("Favorites")) {
-                    ForEach(viewModel.favoriteRecipes) { recipe in
-                        RecipeCard(recipe: recipe, viewModel: viewModel)
-                            .onTapGesture {
-                                viewModel.selectedRecipe = recipe
+                ScrollView {
+                    VStack(spacing: 20) {
+                        Section(header: Text("All Recipes").font(.headline).foregroundColor(Theme.text)) {
+                            ForEach(viewModel.recipes) { recipe in
+                                RecipeCard(recipe: recipe, viewModel: viewModel)
+                                    .onTapGesture {
+                                        viewModel.selectedRecipe = recipe
+                                    }
                             }
+                        }
+                        
+                        Section(header: Text("Favorites").font(.headline).foregroundColor(Theme.text).fixedSize()) {
+                            ForEach(viewModel.favoriteRecipes) { recipe in
+                                RecipeCard(recipe: recipe, viewModel: viewModel)
+                                    .onTapGesture {
+                                        viewModel.selectedRecipe = recipe
+                                    }
+                            }
+                        }
                     }
+                    .padding()
                 }
             }
             .navigationTitle("Recipes")
@@ -236,6 +239,15 @@ struct WorkoutsView: View {
     @State private var selectedWorkoutType = "All"
     let workoutTypes = ["All", "Running", "Cycling", "Walking"]
     
+    var filteredWorkouts: [WorkoutOption] {
+        guard selectedWorkoutType != "All" else {
+            return viewModel.savedWorkouts
+        }
+        return viewModel.savedWorkouts.filter { workout in
+            workout.type.rawValue.capitalized == selectedWorkoutType
+        }
+    }
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -247,17 +259,16 @@ struct WorkoutsView: View {
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle())
-                    .padding(.horizontal)
+                    .padding()
                     
                     // Weekly Progress Card
                     WeeklyProgressCard(progress: viewModel.getWeeklyProgress())
+                        .padding(.horizontal)
                     
                     // Recipe-based Workout Recommendation
                     if let recommendation = viewModel.workoutRecommendation {
                         WorkoutRecommendationView(recommendation: recommendation, viewModel: viewModel)
-                    } else if viewModel.savedWorkouts.isEmpty {
-                        // Show placeholder workouts only when there are no saved workouts
-                        PlaceholderWorkoutsSection()
+                            .padding(.horizontal)
                     }
                     
                     // Add Workout Button
@@ -270,44 +281,35 @@ struct WorkoutsView: View {
                         }
                         .primaryButton()
                     }
-                    .padding(.horizontal)
+                    .padding()
                     
-                    if viewModel.isGeneratingWorkout {
-                        ProgressView("Generating workout recommendation...")
-                            .padding()
+                    // Saved Workouts List
+                    if filteredWorkouts.isEmpty {
+                        if viewModel.savedWorkouts.isEmpty {
+                            PlaceholderWorkoutsSection()
+                                .padding()
+                        } else {
+                            Text("No \(selectedWorkoutType) workouts found")
+                                .foregroundColor(Theme.text.opacity(0.6))
+                                .padding()
+                        }
+                    } else {
+                        VStack(spacing: 15) {
+                            ForEach(filteredWorkouts) { workout in
+                                WorkoutCard(workout: workout, viewModel: viewModel)
+                                    .padding(.horizontal)
+                            }
+                        }
+                        .padding(.bottom)
                     }
-                    
-                    if let error = viewModel.errorMessage {
-                        ErrorMessageView(message: error)
-                    }
-                    
-                    // Saved Workouts Section
-                    if !viewModel.savedWorkouts.isEmpty {
-                        SavedWorkoutsSection(
-                            title: selectedWorkoutType == "All" ? "All Workouts" : "\(selectedWorkoutType) Workouts",
-                            workouts: selectedWorkoutType == "All" ? viewModel.savedWorkouts : viewModel.getWorkoutsForType(WorkoutType(rawValue: selectedWorkoutType.lowercased()) ?? .walking),
-                            viewModel: viewModel
-                        )
-                    }
-                    
-                    // Workout Stats
-                    WorkoutStatsSection(stats: viewModel.getMonthlyStats())
                 }
-                .padding(.vertical)
             }
             .background(Theme.background)
             .navigationTitle("Workouts")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        viewModel.showingRecipeSelection = true
-                    }) {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(Theme.primary)
-                    }
-                }
-            }
+            .toolbarColorScheme(.light, for: .navigationBar)
+            .toolbarBackground(Theme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .sheet(isPresented: $viewModel.showingRecipeSelection) {
                 RecipeSelectionView(viewModel: viewModel)
             }
@@ -469,31 +471,12 @@ struct WorkoutOptionCard: View {
     }
 }
 
-struct SavedWorkoutsSection: View {
-    let title: String
-    let workouts: [WorkoutOption]
-    @ObservedObject var viewModel: FridgeViewModel
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.headline)
-                .foregroundColor(Theme.text)
-                .padding(.horizontal)
-            
-            ForEach(workouts) { workout in
-                WorkoutCard(workout: workout, viewModel: viewModel)
-            }
-        }
-    }
-}
-
 struct WorkoutCard: View {
     let workout: WorkoutOption
     @ObservedObject var viewModel: FridgeViewModel
     
     var body: some View {
-        HStack {
+        HStack(alignment: .center, spacing: 12) {
             Image(systemName: workout.type.icon)
                 .font(.title)
                 .foregroundColor(Theme.primary)
@@ -505,77 +488,25 @@ struct WorkoutCard: View {
                 Text(workout.type.rawValue.capitalized)
                     .font(.headline)
                     .foregroundColor(Theme.text)
+                    .lineLimit(1)
                 Text(workout.description)
                     .font(.subheadline)
                     .foregroundColor(Theme.text.opacity(0.8))
+                    .lineLimit(2)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
-            Spacer()
-            
-            Text("\(workout.caloriesBurned)")
-                .font(.title2)
-                .bold()
-                .foregroundColor(Theme.primary)
-            Text("cal")
-                .font(.caption)
-                .foregroundColor(Theme.text.opacity(0.8))
-        }
-        .padding()
-        .background(Theme.primary.opacity(0.1))
-        .cornerRadius(15)
-        .padding(.horizontal)
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                withAnimation {
-                    viewModel.deleteWorkout(workout)
-                }
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-    }
-}
-
-struct WorkoutStatsSection: View {
-    let stats: (distance: Double, time: String, calories: Int)
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("This Month")
-                .font(.headline)
-                .foregroundColor(Theme.text)
-                .padding(.horizontal)
-            
-            HStack {
-                StatCard(title: "Distance", value: String(format: "%.1f", stats.distance), unit: "km")
-                StatCard(title: "Time", value: stats.time, unit: "")
-                StatCard(title: "Calories", value: "\(stats.calories)", unit: "cal")
-            }
-        }
-    }
-}
-
-struct StatCard: View {
-    let title: String
-    let value: String
-    let unit: String
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(Theme.text.opacity(0.8))
-            Text(value)
-                .font(.title2)
-                .bold()
-                .foregroundColor(Theme.primary)
-            if !unit.isEmpty {
-                Text(unit)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(workout.caloriesBurned)")
+                    .font(.title2)
+                    .bold()
+                    .foregroundColor(Theme.primary)
+                Text("cal")
                     .font(.caption)
                     .foregroundColor(Theme.text.opacity(0.8))
             }
+            .frame(width: 70)
         }
-        .frame(maxWidth: .infinity)
         .padding()
         .background(Theme.primary.opacity(0.1))
         .cornerRadius(15)
@@ -645,7 +576,6 @@ struct RecipeSelectionView: View {
     }
 }
 
-// MARK: - Supporting Views
 struct CameraPlaceholderView: View {
     var body: some View {
         ZStack {
@@ -894,6 +824,8 @@ struct QuickActionsView: View {
                 HStack(spacing: 4) {
                     Image(systemName: viewModel.isFavorite(recipe) ? "heart.fill" : "heart")
                     Text(viewModel.isFavorite(recipe) ? "Favorited" : "Favorite")
+                        .lineLimit(1)
+                        .fixedSize()
                 }
             }
             .foregroundColor(viewModel.isFavorite(recipe) ? .red : Theme.primary)
@@ -1045,9 +977,8 @@ struct GeminiHelpView: View {
                 presentationMode.wrappedValue.dismiss()
             })
             .onAppear {
-                // Here you would integrate with Gemini API
-                // For now, we'll show a placeholder response
                 isLoading = true
+                // placeholder AI helper response (expand in future)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                     aiResponse = "Here are some tips for making \(recipe.name):\n\n1. Make sure all ingredients are fresh and properly prepared\n2. Follow the instructions carefully\n3. Adjust seasoning to your taste\n4. Consider adding garnishes for presentation\n5. Let the dish rest before serving"
                     isLoading = false

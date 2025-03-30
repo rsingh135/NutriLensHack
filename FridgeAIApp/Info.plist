@@ -49,8 +49,21 @@
 		</dict>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to show you nearby places on the map.</string>
+	<string>We need your location to find sustainable food sources near you. This helps us show you nearby restaurants, farmers markets, and other sustainable food options.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We need your location to show you nearby places on the map and provide location-based features.</string>
+	<string>We need your location to find sustainable food sources near you. This helps us show you nearby restaurants, farmers markets, and other sustainable food options. Your location will only be used while the app is active.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>We need your location to find sustainable food sources near you. This helps us show you nearby restaurants, farmers markets, and other sustainable food options. Your location will only be used while the app is active.</string>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>PreciseLocation</key>
+		<string>We need precise location to show you the most accurate sustainable food sources near you.</string>
+	</dict>
+	<key>NSLocationUsageDescription</key>
+	<string>We need your location to find sustainable food sources near you. This helps us show you nearby restaurants, farmers markets, and other sustainable food options.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 </dict>
 </plist>

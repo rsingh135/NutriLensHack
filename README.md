@@ -21,8 +21,5 @@ enum Secrets {
 }
 ```
 
-⚠️ **Important Security Notes**:
-- Never commit `Secrets.swift` to version control
-- Keep your API key private and secure
-- If you accidentally expose your API key, rotate it immediately in the Google AI Studio
-- The `Secrets.swift` file is already in `.gitignore` to prevent accidental commits 
+** Security **:
+ - Don't commit your Secrets.swift file and don't leak your API please 

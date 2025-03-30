@@ -1,4 +1,4 @@
-# FridgeAI App
+# NutriLens App
 
 An iOS app that helps you manage your fridge contents, generate recipes, and track workouts.
 

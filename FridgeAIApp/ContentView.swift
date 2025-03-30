@@ -12,37 +12,71 @@ struct ContentView: View {
     
     @StateObject private var viewModel = FridgeViewModel()
     @State private var showingCamera = false
+    @State private var showingPhotoLibrary = false
     @State private var selectedTab = 0
+    @State private var isAuthenticated = false
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeTabView(viewModel: viewModel, showingCamera: $showingCamera)
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
+        Group {
+            if isAuthenticated {
+                TabView(selection: $selectedTab) {
+                    HomeTabView(viewModel: viewModel, showingCamera: $showingCamera, showingPhotoLibrary: $showingPhotoLibrary)
+                        .tabItem {
+                            Label("Home", systemImage: "house.fill")
+                        }
+                        .tag(0)
+                    
+                    RecipesTabView(viewModel: viewModel)
+                        .tabItem {
+                            Label("Recipes", systemImage: "fork.knife")
+                        }
+                        .tag(1)
+                    
+                    WorkoutsView(viewModel: viewModel)
+                        .tabItem {
+                            Label("Workouts", systemImage: "figure.run")
+                        }
+                        .tag(2)
+                    
+                    UserHealthProfileView(viewModel: viewModel)
+                        .tabItem {
+                            Label("Profile", systemImage: "person.crop.circle")
+                        }
                 }
-                .tag(0)
-            
-            RecipesTabView(viewModel: viewModel)
-                .tabItem {
-                    Label("Recipes", systemImage: "fork.knife")
+                .sheet(isPresented: $showingCamera) {
+                    CameraView(image: $viewModel.fridgeImage, sourceType: .camera)
                 }
-                .tag(1)
-            
-            WorkoutsView(viewModel: viewModel)
-                .tabItem {
-                    Label("Workouts", systemImage: "figure.run")
+                .sheet(isPresented: $showingPhotoLibrary) {
+                    CameraView(image: $viewModel.fridgeImage, sourceType: .photoLibrary)
                 }
-                .tag(2)
+                .sheet(item: $viewModel.selectedRecipe) { recipe in
+                    RecipeDetailView(recipe: recipe, viewModel: viewModel)
+                }
+                .sheet(isPresented: $viewModel.showingHealthProfile) {
+                    UserHealthProfileView(viewModel: viewModel)
+                }
+                .onChange(of: viewModel.fridgeImage) { oldImage, newImage in
+                    if newImage != nil {
+                        viewModel.analyzeFridgeImage()
+                    }
+                }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            viewModel.showingHealthProfile = true
+                        }) {
+                            Image(systemName: "person.crop.circle")
+                        }
+                    }
+                }
+            } else {
+                LoginView(isAuthenticated: $isAuthenticated)
+            }
         }
-        .sheet(isPresented: $showingCamera) {
-            CameraView(image: $viewModel.fridgeImage)
-        }
-        .sheet(item: $viewModel.selectedRecipe) { recipe in
-            RecipeDetailView(recipe: recipe, viewModel: viewModel)
-        }
-        .onChange(of: viewModel.fridgeImage) { oldImage, newImage in
-            if newImage != nil {
-                viewModel.analyzeFridgeImage()
+        .onChange(of: isAuthenticated) { _, newValue in
+            if newValue && viewModel.userHealthProfile == nil {
+                // Show health profile setup when user first logs in
+                viewModel.showingHealthProfile = true
             }
         }
     }
@@ -51,12 +85,13 @@ struct ContentView: View {
 struct HomeTabView: View {
     @ObservedObject var viewModel: FridgeViewModel
     @Binding var showingCamera: Bool
+    @Binding var showingPhotoLibrary: Bool
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    CameraSectionView(viewModel: viewModel, showingCamera: $showingCamera)
+                    CameraSectionView(viewModel: viewModel, showingCamera: $showingCamera, showingPhotoLibrary: $showingPhotoLibrary)
                     SustainableModeToggleView(viewModel: viewModel)
                     
                     if viewModel.isAnalyzing {
@@ -102,6 +137,7 @@ struct HomeTabView: View {
 struct CameraSectionView: View {
     @ObservedObject var viewModel: FridgeViewModel
     @Binding var showingCamera: Bool
+    @Binding var showingPhotoLibrary: Bool
     
     var body: some View {
         VStack {
@@ -117,14 +153,26 @@ struct CameraSectionView: View {
                 CameraPlaceholderView()
             }
             
-            Button(action: {
-                showingCamera = true
-            }) {
-                HStack {
-                    Image(systemName: "camera.fill")
-                    Text("Take Fridge Photo")
+            HStack(spacing: 15) {
+                Button(action: {
+                    showingCamera = true
+                }) {
+                    HStack {
+                        Image(systemName: "camera.fill")
+                        Text("Take Photo")
+                    }
+                    .primaryButton()
                 }
-                .primaryButton()
+                
+                Button(action: {
+                    showingPhotoLibrary = true
+                }) {
+                    HStack {
+                        Image(systemName: "photo.fill")
+                        Text("Upload Photo")
+                    }
+                    .primaryButton()
+                }
             }
             .padding(.horizontal)
         }
@@ -841,20 +889,28 @@ struct QuickActionsView: View {
     @Binding var showingGeminiHelp: Bool
     
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 15) {
             Button(action: { viewModel.toggleFavorite(recipe) }) {
-                Label(viewModel.isFavorite(recipe) ? "Favorited" : "Favorite", 
-                      systemImage: viewModel.isFavorite(recipe) ? "heart.fill" : "heart")
+                HStack(spacing: 4) {
+                    Image(systemName: viewModel.isFavorite(recipe) ? "heart.fill" : "heart")
+                    Text(viewModel.isFavorite(recipe) ? "Favorited" : "Favorite")
+                }
             }
             .foregroundColor(viewModel.isFavorite(recipe) ? .red : Theme.primary)
             
             Button(action: { showingShareSheet = true }) {
-                Label("Share", systemImage: "square.and.arrow.up")
+                HStack(spacing: 4) {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("Share")
+                }
             }
             .foregroundColor(Theme.primary)
             
             Button(action: { showingGeminiHelp = true }) {
-                Label("AI Help", systemImage: "sparkles")
+                HStack(spacing: 4) {
+                    Image(systemName: "sparkles")
+                    Text("AI Help")
+                }
             }
             .foregroundColor(Theme.primary)
             
@@ -867,8 +923,10 @@ struct QuickActionsView: View {
                     viewModel.speakRecipe(recipe)
                 }
             }) {
-                Label(viewModel.isSpeaking ? "Stop" : "Listen", 
-                      systemImage: viewModel.isSpeaking ? "stop.fill" : "play.fill")
+                HStack(spacing: 4) {
+                    Image(systemName: viewModel.isSpeaking ? "stop.fill" : "play.fill")
+                    Text(viewModel.isSpeaking ? "Stop" : "Listen")
+                }
             }
             .foregroundColor(Theme.primary)
         }

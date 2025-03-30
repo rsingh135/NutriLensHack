@@ -122,4 +122,67 @@ enum WorkoutType: String, Codable {
         case .cycling: return "figure.outdoor.cycle"
         }
     }
+}
+
+struct UserHealthProfile: Codable {
+    var height: Double // in centimeters
+    var weight: Double // in kilograms
+    var gender: String // "male", "female", "other", "prefer not to say"
+    var age: Int
+    var dietaryPreferences: [String] // e.g., ["vegetarian", "gluten-free"]
+    var allergies: [String]
+    var fitnessGoal: String // e.g., "weight loss", "muscle gain", "maintenance"
+    var activityLevel: String // e.g., "sedentary", "moderate", "active"
+    
+    // Computed property for BMI
+    var bmi: Double {
+        let heightInMeters = height / 100
+        return weight / (heightInMeters * heightInMeters)
+    }
+    
+    // Default initializer with optional values
+    init(height: Double = 170,
+         weight: Double = 70,
+         gender: String = "prefer not to say",
+         age: Int = 25,
+         dietaryPreferences: [String] = [],
+         allergies: [String] = [],
+         fitnessGoal: String = "maintenance",
+         activityLevel: String = "moderate") {
+        self.height = height
+        self.weight = weight
+        self.gender = gender
+        self.age = age
+        self.dietaryPreferences = dietaryPreferences
+        self.allergies = allergies
+        self.fitnessGoal = fitnessGoal
+        self.activityLevel = activityLevel
+    }
+}
+
+// Constants for user preferences
+enum DietaryPreference: String, CaseIterable {
+    case none = "None"
+    case vegetarian = "Vegetarian"
+    case vegan = "Vegan"
+    case pescatarian = "Pescatarian"
+    case glutenFree = "Gluten-Free"
+    case dairyFree = "Dairy-Free"
+    case keto = "Keto"
+    case paleo = "Paleo"
+}
+
+enum FitnessGoal: String, CaseIterable {
+    case weightLoss = "Weight Loss"
+    case muscleGain = "Muscle Gain"
+    case maintenance = "Maintenance"
+    case generalHealth = "General Health"
+}
+
+enum ActivityLevel: String, CaseIterable {
+    case sedentary = "Sedentary"
+    case lightlyActive = "Lightly Active"
+    case moderatelyActive = "Moderately Active"
+    case veryActive = "Very Active"
+    case extremelyActive = "Extremely Active"
 } 

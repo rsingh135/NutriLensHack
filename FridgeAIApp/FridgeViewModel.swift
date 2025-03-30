@@ -29,6 +29,11 @@ class FridgeViewModel: NSObject, ObservableObject {
     @Published var isGeneratingWorkout = false
     @Published var savedWorkouts: [WorkoutOption] = []
     @Published var selectedWorkoutType: WorkoutType?
+    @Published var userHealthProfile: UserHealthProfile?
+    @Published var showingHealthProfile = false
+    
+    private let userDefaults = UserDefaults.standard
+    private let healthProfileKey = "userHealthProfile"
     
     override init() {
         // Initialize with API key from Secrets.swift
@@ -37,16 +42,29 @@ class FridgeViewModel: NSObject, ObservableObject {
         speechSynthesizer.delegate = self
         loadFavorites()
         loadSavedWorkouts()
+        loadHealthProfile()
     }
     
     func analyzeFridgeImage() {
-        guard let image = fridgeImage,
-              let imageData = image.jpegData(compressionQuality: 0.8) else {
+        guard let image = fridgeImage else { return }
+        isAnalyzing = true
+        
+        // Create a context string that includes health profile information
+        var contextString = "Analyze this image of fridge contents"
+        if let profile = userHealthProfile {
+            contextString += " considering the following dietary preferences: \(profile.dietaryPreferences.joined(separator: ", "))"
+            if !profile.allergies.isEmpty {
+                contextString += " and avoiding these allergens: \(profile.allergies.joined(separator: ", "))"
+            }
+            contextString += ". The user's fitness goal is \(profile.fitnessGoal)."
+        }
+        
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
             errorMessage = "Failed to process image"
+            isAnalyzing = false
             return
         }
         
-        isAnalyzing = true
         errorMessage = nil
         
         Task {
@@ -213,6 +231,45 @@ class FridgeViewModel: NSObject, ObservableObject {
     
     private func updateWeeklyProgress() {
         // This will trigger a UI update since we're using @Published properties
+    }
+    
+    func updateHealthProfile(_ profile: UserHealthProfile) {
+        userHealthProfile = profile
+        saveHealthProfile()
+    }
+    
+    private func loadHealthProfile() {
+        if let data = userDefaults.data(forKey: healthProfileKey),
+           let profile = try? JSONDecoder().decode(UserHealthProfile.self, from: data) {
+            userHealthProfile = profile
+        }
+    }
+    
+    private func saveHealthProfile() {
+        if let profile = userHealthProfile,
+           let data = try? JSONEncoder().encode(profile) {
+            userDefaults.set(data, forKey: healthProfileKey)
+        }
+    }
+    
+    // Update recipe suggestions based on health profile
+    func suggestRecipes(for ingredients: [String]) {
+        var prompt = "Suggest recipes using these ingredients: \(ingredients.joined(separator: ", "))"
+        
+        if let profile = userHealthProfile {
+            prompt += "\nConsider these dietary preferences: \(profile.dietaryPreferences.joined(separator: ", "))"
+            if !profile.allergies.isEmpty {
+                prompt += "\nAvoid these allergens: \(profile.allergies.joined(separator: ", "))"
+            }
+            prompt += "\nFitness goal: \(profile.fitnessGoal)"
+            prompt += "\nActivity level: \(profile.activityLevel)"
+        }
+        
+        if isSustainableMode {
+            prompt += "\nFocus on sustainable and eco-friendly cooking methods."
+        }
+        
+        // ... rest of your existing recipe suggestion implementation ...
     }
 }
 

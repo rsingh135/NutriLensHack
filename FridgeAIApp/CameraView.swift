@@ -13,45 +13,51 @@ struct CameraView: UIViewControllerRepresentable {
     @Environment(\.presentationMode) var presentationMode
     @State private var showError = false
     @State private var errorMessage = ""
+    let sourceType: UIImagePickerController.SourceType
     
     func makeUIViewController(context: Context) -> UIImagePickerController {
-        print("Creating camera view controller")
+        print("Creating image picker controller")
         let picker = UIImagePickerController()
         picker.delegate = context.coordinator
-        picker.sourceType = .camera
+        picker.sourceType = sourceType
         
-        // Check if camera is available
-        if !UIImagePickerController.isSourceTypeAvailable(.camera) {
-            print("Camera is not available")
-            errorMessage = "Camera is not available on this device"
+        // Check if source type is available
+        if !UIImagePickerController.isSourceTypeAvailable(sourceType) {
+            print("Source type is not available")
+            errorMessage = "This feature is not available on this device"
             showError = true
             return picker
         }
         
-        // Check camera authorization status
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            print("Camera is authorized")
-            return picker
-        case .notDetermined:
-            print("Requesting camera authorization")
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                if !granted {
-                    print("Camera access denied")
-                    errorMessage = "Camera access is required to take photos"
-                    showError = true
+        // Check authorization status for camera or photo library
+        if sourceType == .camera {
+            switch AVCaptureDevice.authorizationStatus(for: .video) {
+            case .authorized:
+                print("Camera is authorized")
+                return picker
+            case .notDetermined:
+                print("Requesting camera authorization")
+                AVCaptureDevice.requestAccess(for: .video) { granted in
+                    if !granted {
+                        print("Camera access denied")
+                        errorMessage = "Camera access is required to take photos"
+                        showError = true
+                    }
                 }
+                return picker
+            case .denied, .restricted:
+                print("Camera access denied or restricted")
+                errorMessage = "Please enable camera access in Settings"
+                showError = true
+                return picker
+            @unknown default:
+                print("Unknown camera authorization status")
+                errorMessage = "Unknown camera authorization status"
+                showError = true
+                return picker
             }
-            return picker
-        case .denied, .restricted:
-            print("Camera access denied or restricted")
-            errorMessage = "Please enable camera access in Settings"
-            showError = true
-            return picker
-        @unknown default:
-            print("Unknown camera authorization status")
-            errorMessage = "Unknown camera authorization status"
-            showError = true
+        } else {
+            // For photo library, we'll handle authorization in the coordinator
             return picker
         }
     }
@@ -97,6 +103,6 @@ struct CameraView: UIViewControllerRepresentable {
 // Preview provider for SwiftUI canvas
 struct CameraView_Previews: PreviewProvider {
     static var previews: some View {
-        CameraView(image: .constant(nil))
+        CameraView(image: .constant(nil), sourceType: .camera)
     }
 }

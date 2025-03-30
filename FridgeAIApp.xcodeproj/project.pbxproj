@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		17089C2C2D99150700DA64E4 /* Auth0 in Frameworks */ = {isa = PBXBuildFile; productRef = 17089C2B2D99150700DA64E4 /* Auth0 */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		0152A9802D97578A00CAE7F4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +33,22 @@
 		0152A9892D97578A00CAE7F4 /* FridgeAIAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FridgeAIAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		17089C642D9925B400DA64E4 /* Exceptions for "FridgeAIApp" folder in "FridgeAIApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0152A96E2D97578900CAE7F4 /* FridgeAIApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0152A9712D97578900CAE7F4 /* FridgeAIApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				17089C642D9925B400DA64E4 /* Exceptions for "FridgeAIApp" folder in "FridgeAIApp" target */,
+			);
 			path = FridgeAIApp;
 			sourceTree = "<group>";
 		};
@@ -52,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				17089C2C2D99150700DA64E4 /* Auth0 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +130,7 @@
 			);
 			name = FridgeAIApp;
 			packageProductDependencies = (
+				17089C2B2D99150700DA64E4 /* Auth0 */,
 			);
 			productName = FridgeAIApp;
 			productReference = 0152A96F2D97578900CAE7F4 /* FridgeAIApp.app */;
@@ -195,6 +214,9 @@
 			);
 			mainGroup = 0152A9662D97578900CAE7F4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				17089C2A2D99150700DA64E4 /* XCRemoteSwiftPackageReference "Auth0.swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0152A9702D97578900CAE7F4 /* Products */;
 			projectDirPath = "";
@@ -558,6 +580,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		17089C2A2D99150700DA64E4 /* XCRemoteSwiftPackageReference "Auth0.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/auth0/Auth0.swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		17089C2B2D99150700DA64E4 /* Auth0 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 17089C2A2D99150700DA64E4 /* XCRemoteSwiftPackageReference "Auth0.swift" */;
+			productName = Auth0;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0152A9672D97578900CAE7F4 /* Project object */;
 }

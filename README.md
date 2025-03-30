@@ -1,6 +1,6 @@
 # NutriLens App
 
-An iOS app that helps you manage your fridge contents, generate recipes, and track workouts.
+An iOS app that helps you manage your fridge waste, generate recipes, and track workouts, and find sustainable options near you.
 
 ## Setup Instructions
 

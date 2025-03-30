@@ -102,9 +102,9 @@ struct UserHealthProfileView: View {
                             .foregroundColor(Theme.text)
                             .padding(.horizontal)
                         
-                        VStack {
-                            ForEach(DietaryPreference.allCases, id: \.rawValue) { preference in
-                                Toggle(preference.rawValue, isOn: Binding(
+                        VStack(spacing: 15) {
+                            ForEach(DietaryPreference.allCases, id: \.self) { preference in
+                                Toggle(isOn: Binding(
                                     get: { selectedDietaryPreferences.contains(preference.rawValue) },
                                     set: { isSelected in
                                         if isSelected {
@@ -114,12 +114,15 @@ struct UserHealthProfileView: View {
                                         }
                                         healthProfile.dietaryPreferences = Array(selectedDietaryPreferences)
                                     }
-                                ))
-                                .toggleStyle(SwitchToggleStyle(tint: Theme.primary))
-                                .disabled(!isEditing)
-                                if preference != DietaryPreference.allCases.last {
-                                    Divider()
+                                )) {
+                                    HStack {
+                                        Image(systemName: preference.icon)
+                                            .foregroundColor(Theme.primary)
+                                        Text(preference.rawValue)
+                                            .foregroundColor(Theme.text)
+                                    }
                                 }
+                                .disabled(!isEditing)
                             }
                         }
                         .padding()
@@ -135,9 +138,9 @@ struct UserHealthProfileView: View {
                             .foregroundColor(Theme.text)
                             .padding(.horizontal)
                         
-                        VStack(spacing: 2) {
+                        VStack(spacing: 15) {
                             ForEach(commonAllergies, id: \.self) { allergy in
-                                Toggle(allergy, isOn: Binding(
+                                Toggle(isOn: Binding(
                                     get: { selectedAllergies.contains(allergy) },
                                     set: { isSelected in
                                         if isSelected {
@@ -147,41 +150,32 @@ struct UserHealthProfileView: View {
                                         }
                                         healthProfile.allergies = Array(selectedAllergies)
                                     }
-                                ))
-                                .toggleStyle(SwitchToggleStyle(tint: Theme.primary))
-                                .disabled(!isEditing)
-                                if allergy != commonAllergies.last {
-                                    Divider()
+                                )) {
+                                    Text(allergy)
+                                        .foregroundColor(Theme.text)
                                 }
+                                .disabled(!isEditing)
                             }
-                        }
-                        .padding()
-                        .background(Theme.primary.opacity(0.1))
-                        .cornerRadius(15)
-                        .padding(.horizontal)
-                    }
-                    
-                    // Fitness Section
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Fitness")
-                            .font(.headline)
-                            .foregroundColor(Theme.text)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 15) {
-                            FitnessSelector(
-                                title: "Fitness Goal",
-                                selection: $healthProfile.fitnessGoal,
-                                options: FitnessGoal.allCases.map { $0.rawValue },
-                                isDisabled: !isEditing
-                            )
                             
-                            FitnessSelector(
-                                title: "Activity Level",
-                                selection: $healthProfile.activityLevel,
-                                options: ActivityLevel.allCases.map { $0.rawValue },
-                                isDisabled: !isEditing
-                            )
+                            if isEditing {
+                                HStack {
+                                    TextField("Add custom allergy", text: $newAllergy)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                        .foregroundColor(Theme.text)
+                                    
+                                    Button(action: {
+                                        if !newAllergy.isEmpty {
+                                            selectedAllergies.insert(newAllergy)
+                                            healthProfile.allergies = Array(selectedAllergies)
+                                            newAllergy = ""
+                                        }
+                                    }) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .foregroundColor(Theme.primary)
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
                         }
                         .padding()
                         .background(Theme.primary.opacity(0.1))
@@ -191,60 +185,49 @@ struct UserHealthProfileView: View {
                 }
                 .padding(.vertical)
             }
-            .background(Theme.background)
             .navigationTitle("Health Profile")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         presentationMode.wrappedValue.dismiss()
                     }
+                    .foregroundColor(Theme.primary)
                 }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(isEditing ? "Save" : "Edit") {
-                        if isEditing {
-                            saveProfile()
+                    if isEditing {
+                        Button("Save") {
+                            viewModel.updateUserHealthProfile(healthProfile)
+                            showingSaveConfirmation = true
                         }
-                        isEditing.toggle()
+                        .foregroundColor(Theme.primary)
+                    } else {
+                        Button("Edit") {
+                            isEditing = true
+                        }
+                        .foregroundColor(Theme.primary)
                     }
                 }
             }
-            .alert(isPresented: $showingSaveConfirmation) {
-                Alert(
-                    title: Text("Profile Saved"),
-                    message: Text("Your health profile has been updated."),
-                    dismissButton: .default(Text("OK")) {
-                        isEditing = false
-                    }
-                )
+            .alert("Profile Saved", isPresented: $showingSaveConfirmation) {
+                Button("OK") {
+                    isEditing = false
+                }
+            } message: {
+                Text("Your health profile has been updated successfully.")
             }
         }
-    }
-    
-    private func addAllergy() {
-        let trimmedAllergy = newAllergy.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedAllergy.isEmpty && !healthProfile.allergies.contains(trimmedAllergy) {
-            healthProfile.allergies.append(trimmedAllergy)
-            newAllergy = ""
-        }
-    }
-    
-    private func saveProfile() {
-        healthProfile.dietaryPreferences = Array(selectedDietaryPreferences)
-        healthProfile.allergies = Array(selectedAllergies)
-        viewModel.updateHealthProfile(healthProfile)
-        showingSaveConfirmation = true
     }
 }
 
-// Supporting Views
 struct MetricInputField: View {
     let icon: String
     let title: String
     let unit: String
     @Binding var value: Double
     let isDisabled: Bool
-    var onValueChanged: ((Double) -> Void)? = nil
+    let onValueChange: (Double) -> Void
     
     var body: some View {
         HStack {
@@ -257,29 +240,28 @@ struct MetricInputField: View {
             
             Spacer()
             
-            TextField("Value", value: $value, formatter: NumberFormatter())
+            TextField("0", value: $value, format: .number)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 60)
                 .disabled(isDisabled)
                 .onChange(of: value) { newValue in
-                    onValueChanged?(newValue)
+                    onValueChange(newValue)
                 }
             
             Text(unit)
                 .foregroundColor(Theme.text.opacity(0.8))
-                .frame(width: 50, alignment: .leading)
         }
     }
 }
 
 struct GenderSelector: View {
-    @Binding var selection: String
+    @Binding var selection: Gender
     let isDisabled: Bool
     
     var body: some View {
         HStack {
-            Image(systemName: "person.fill")
+            Image(systemName: "person")
                 .foregroundColor(Theme.primary)
                 .frame(width: 30)
             
@@ -289,13 +271,13 @@ struct GenderSelector: View {
             Spacer()
             
             Picker("Gender", selection: $selection) {
-                Text("Male").tag("male")
-                Text("Female").tag("female")
-                Text("Other").tag("other")
-                Text("Prefer not to say").tag("prefer not to say")
+                ForEach(Gender.allCases, id: \.self) { gender in
+                    Text(gender.rawValue.capitalized)
+                        .tag(gender)
+                }
             }
+            .pickerStyle(.segmented)
             .disabled(isDisabled)
-            .tint(Theme.primary)
         }
     }
 }
@@ -304,67 +286,36 @@ struct BMICard: View {
     let bmi: Double
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 5) {
             Text("BMI")
-                .font(.headline)
-                .foregroundColor(Theme.text)
+                .font(.subheadline)
+                .foregroundColor(Theme.text.opacity(0.8))
             
-            HStack(alignment: .bottom, spacing: 4) {
-                Text(String(format: "%.1f", bmi))
-                    .font(.title)
-                    .bold()
-                    .foregroundColor(getBMIColor(bmi: bmi))
-                
-                Text(getBMICategory(bmi: bmi))
-                    .font(.caption)
-                    .foregroundColor(Theme.text.opacity(0.8))
-                    .padding(.bottom, 4)
-            }
+            Text(String(format: "%.1f", bmi))
+                .font(.title)
+                .bold()
+                .foregroundColor(Theme.primary)
+            
+            Text(bmiCategory)
+                .font(.caption)
+                .foregroundColor(Theme.text.opacity(0.8))
         }
         .padding()
+        .frame(width: 120)
         .background(Theme.primary.opacity(0.1))
         .cornerRadius(15)
     }
     
-    private func getBMIColor(bmi: Double) -> Color {
+    private var bmiCategory: String {
         switch bmi {
-        case ..<18.5: return .blue
-        case 18.5..<25: return Theme.primary
-        case 25..<30: return .orange
-        default: return .red
-        }
-    }
-    
-    private func getBMICategory(bmi: Double) -> String {
-        switch bmi {
-        case ..<18.5: return "Underweight"
-        case 18.5..<25: return "Normal weight"
-        case 25..<30: return "Overweight"
-        default: return "Obese"
+        case ..<18.5:
+            return "Underweight"
+        case 18.5..<25:
+            return "Normal"
+        case 25..<30:
+            return "Overweight"
+        default:
+            return "Obese"
         }
     }
 }
-
-struct FitnessSelector: View {
-    let title: String
-    @Binding var selection: String
-    let options: [String]
-    let isDisabled: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .foregroundColor(Theme.text)
-            
-            Picker(title, selection: $selection) {
-                ForEach(options, id: \.self) { option in
-                    Text(option.capitalized)
-                        .tag(option)
-                }
-            }
-            .disabled(isDisabled)
-            .pickerStyle(SegmentedPickerStyle())
-            .tint(Theme.primary)
-        }
-    }
-} 

@@ -77,13 +77,17 @@ struct WorkoutOption: Codable, Identifiable {
     let duration: Int // in minutes
     let caloriesBurned: Int
     let description: String
+    var isCompleted: Bool
+    var completedDate: Date?
     
-    init(id: UUID = UUID(), type: WorkoutType, duration: Int, caloriesBurned: Int, description: String) {
+    init(id: UUID = UUID(), type: WorkoutType, duration: Int, caloriesBurned: Int, description: String, isCompleted: Bool = false, completedDate: Date? = nil) {
         self.id = id
         self.type = type
         self.duration = duration
         self.caloriesBurned = caloriesBurned
         self.description = description
+        self.isCompleted = isCompleted
+        self.completedDate = completedDate
     }
     
     // Add custom decoding to handle missing id field
@@ -94,6 +98,8 @@ struct WorkoutOption: Codable, Identifiable {
         self.duration = try container.decode(Int.self, forKey: .duration)
         self.caloriesBurned = try container.decode(Int.self, forKey: .caloriesBurned)
         self.description = try container.decode(String.self, forKey: .description)
+        self.isCompleted = false
+        self.completedDate = nil
     }
     
     private enum CodingKeys: String, CodingKey {

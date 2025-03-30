@@ -186,7 +186,7 @@ struct RecipesTabView: View {
 struct WorkoutsView: View {
     @ObservedObject var viewModel: FridgeViewModel
     @State private var selectedWorkoutType = "All"
-    let workoutTypes = ["All", "Running", "Cycling", "Swimming", "Walking"]
+    let workoutTypes = ["All", "Running", "Cycling", "Walking"]
     
     var body: some View {
         ScrollView {
@@ -201,11 +201,14 @@ struct WorkoutsView: View {
                 .padding(.horizontal)
                 
                 // Weekly Progress Card
-                WeeklyProgressCard()
+                WeeklyProgressCard(progress: viewModel.getWeeklyProgress())
                 
                 // Recipe-based Workout Recommendation
                 if let recommendation = viewModel.workoutRecommendation {
-                    WorkoutRecommendationView(recommendation: recommendation)
+                    WorkoutRecommendationView(recommendation: recommendation, viewModel: viewModel)
+                } else if viewModel.savedWorkouts.isEmpty {
+                    // Show placeholder workouts only when there are no saved workouts
+                    PlaceholderWorkoutsSection()
                 }
                 
                 // Add Workout Button
@@ -229,11 +232,17 @@ struct WorkoutsView: View {
                     ErrorMessageView(message: error)
                 }
                 
-                // Recent Workouts
-                RecentWorkoutsSection()
+                // Saved Workouts Section
+                if !viewModel.savedWorkouts.isEmpty {
+                    SavedWorkoutsSection(
+                        title: selectedWorkoutType == "All" ? "All Workouts" : "\(selectedWorkoutType) Workouts",
+                        workouts: selectedWorkoutType == "All" ? viewModel.savedWorkouts : viewModel.getWorkoutsForType(WorkoutType(rawValue: selectedWorkoutType.lowercased()) ?? .walking),
+                        viewModel: viewModel
+                    )
+                }
                 
                 // Workout Stats
-                WorkoutStatsSection()
+                WorkoutStatsSection(stats: viewModel.getMonthlyStats())
             }
             .padding(.vertical)
         }
@@ -255,35 +264,7 @@ struct WorkoutsView: View {
     }
 }
 
-struct WeeklyProgressCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Weekly Progress")
-                .font(.headline)
-                .foregroundColor(Theme.text)
-            
-            HStack {
-                ForEach(0..<7) { day in
-                    VStack {
-                        Text("\(day + 1)")
-                            .font(.caption)
-                            .foregroundColor(Theme.text)
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Theme.primary.opacity(0.3))
-                            .frame(height: 40)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-        }
-        .padding()
-        .background(Theme.primary.opacity(0.1))
-        .cornerRadius(15)
-        .padding(.horizontal)
-    }
-}
-
-struct RecentWorkoutsSection: View {
+struct PlaceholderWorkoutsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Recent Workouts")
@@ -292,13 +273,13 @@ struct RecentWorkoutsSection: View {
                 .padding(.horizontal)
             
             ForEach(0..<3) { _ in
-                WorkoutCard()
+                PlaceholderWorkoutCard()
             }
         }
     }
 }
 
-struct WorkoutCard: View {
+struct PlaceholderWorkoutCard: View {
     var body: some View {
         HStack {
             Image(systemName: "figure.run")
@@ -334,7 +315,179 @@ struct WorkoutCard: View {
     }
 }
 
+struct WeeklyProgressCard: View {
+    let progress: [Bool]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Weekly Progress")
+                .font(.headline)
+                .foregroundColor(Theme.text)
+            
+            HStack {
+                ForEach(0..<7) { day in
+                    VStack {
+                        Text("\(day + 1)")
+                            .font(.caption)
+                            .foregroundColor(Theme.text)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(progress[day] ? Theme.primary : Theme.primary.opacity(0.3))
+                            .frame(height: 40)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding()
+        .background(Theme.primary.opacity(0.1))
+        .cornerRadius(15)
+        .padding(.horizontal)
+    }
+}
+
+struct WorkoutRecommendationView: View {
+    let recommendation: WorkoutRecommendation
+    @ObservedObject var viewModel: FridgeViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("Workout Recommendation")
+                .font(.title2)
+                .bold()
+                .foregroundColor(Theme.text)
+            
+            Text("To burn off \(recommendation.caloriesToBurn) calories from \(recommendation.recipeName)")
+                .foregroundColor(Theme.text)
+            
+            ForEach(recommendation.workouts) { workout in
+                WorkoutOptionCard(workout: workout, viewModel: viewModel)
+            }
+        }
+        .padding()
+        .background(Theme.background)
+        .cornerRadius(15)
+        .padding(.horizontal)
+    }
+}
+
+struct WorkoutOptionCard: View {
+    let workout: WorkoutOption
+    @ObservedObject var viewModel: FridgeViewModel
+    
+    var body: some View {
+        HStack {
+            Image(systemName: workout.type.icon)
+                .font(.title2)
+                .foregroundColor(Theme.primary)
+                .frame(width: 40)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(workout.type.rawValue.capitalized)
+                    .font(.headline)
+                    .foregroundColor(Theme.text)
+                
+                Text(workout.description)
+                    .font(.subheadline)
+                    .foregroundColor(Theme.text)
+                
+                HStack {
+                    Image(systemName: "clock.fill")
+                    Text("\(workout.duration) min")
+                    Spacer()
+                    Image(systemName: "flame.fill")
+                    Text("\(workout.caloriesBurned) cal")
+                }
+                .font(.caption)
+                .foregroundColor(Theme.accent)
+            }
+            
+            Spacer()
+            
+            if !workout.isCompleted {
+                Button(action: {
+                    viewModel.saveWorkout(workout)
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(Theme.primary)
+                }
+            }
+        }
+        .padding()
+        .background(Theme.primary.opacity(0.1))
+        .cornerRadius(10)
+    }
+}
+
+struct SavedWorkoutsSection: View {
+    let title: String
+    let workouts: [WorkoutOption]
+    @ObservedObject var viewModel: FridgeViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(Theme.text)
+                .padding(.horizontal)
+            
+            ForEach(workouts) { workout in
+                WorkoutCard(workout: workout, viewModel: viewModel)
+            }
+        }
+    }
+}
+
+struct WorkoutCard: View {
+    let workout: WorkoutOption
+    @ObservedObject var viewModel: FridgeViewModel
+    
+    var body: some View {
+        HStack {
+            Image(systemName: workout.type.icon)
+                .font(.title)
+                .foregroundColor(Theme.primary)
+                .frame(width: 50, height: 50)
+                .background(Theme.primary.opacity(0.1))
+                .clipShape(Circle())
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(workout.type.rawValue.capitalized)
+                    .font(.headline)
+                    .foregroundColor(Theme.text)
+                Text(workout.description)
+                    .font(.subheadline)
+                    .foregroundColor(Theme.text.opacity(0.8))
+            }
+            
+            Spacer()
+            
+            Text("\(workout.caloriesBurned)")
+                .font(.title2)
+                .bold()
+                .foregroundColor(Theme.primary)
+            Text("cal")
+                .font(.caption)
+                .foregroundColor(Theme.text.opacity(0.8))
+        }
+        .padding()
+        .background(Theme.primary.opacity(0.1))
+        .cornerRadius(15)
+        .padding(.horizontal)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                withAnimation {
+                    viewModel.deleteWorkout(workout)
+                }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+}
+
 struct WorkoutStatsSection: View {
+    let stats: (distance: Double, time: String, calories: Int)
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("This Month")
@@ -343,9 +496,9 @@ struct WorkoutStatsSection: View {
                 .padding(.horizontal)
             
             HStack {
-                StatCard(title: "Distance", value: "42.5", unit: "km")
-                StatCard(title: "Time", value: "4h 20m", unit: "")
-                StatCard(title: "Calories", value: "2,850", unit: "cal")
+                StatCard(title: "Distance", value: String(format: "%.1f", stats.distance), unit: "km")
+                StatCard(title: "Time", value: stats.time, unit: "")
+                StatCard(title: "Calories", value: "\(stats.calories)", unit: "cal")
             }
         }
     }
@@ -375,66 +528,6 @@ struct StatCard: View {
         .padding()
         .background(Theme.primary.opacity(0.1))
         .cornerRadius(15)
-    }
-}
-
-struct WorkoutRecommendationView: View {
-    let recommendation: WorkoutRecommendation
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Workout Recommendation")
-                .font(.title2)
-                .bold()
-                .foregroundColor(Theme.text)
-            
-            Text("To burn off \(recommendation.caloriesToBurn) calories from \(recommendation.recipeName)")
-                .foregroundColor(Theme.text)
-            
-            ForEach(recommendation.workouts) { workout in
-                WorkoutOptionCard(workout: workout)
-            }
-        }
-        .padding()
-        .background(Theme.background)
-        .cornerRadius(15)
-        .padding(.horizontal)
-    }
-}
-
-struct WorkoutOptionCard: View {
-    let workout: WorkoutOption
-    
-    var body: some View {
-        HStack {
-            Image(systemName: workout.type.icon)
-                .font(.title2)
-                .foregroundColor(Theme.primary)
-                .frame(width: 40)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(workout.type.rawValue.capitalized)
-                    .font(.headline)
-                    .foregroundColor(Theme.text)
-                
-                Text(workout.description)
-                    .font(.subheadline)
-                    .foregroundColor(Theme.text)
-                
-                HStack {
-                    Image(systemName: "clock.fill")
-                    Text("\(workout.duration) min")
-                    Spacer()
-                    Image(systemName: "flame.fill")
-                    Text("\(workout.caloriesBurned) cal")
-                }
-                .font(.caption)
-                .foregroundColor(Theme.accent)
-            }
-        }
-        .padding()
-        .background(Theme.primary.opacity(0.1))
-        .cornerRadius(10)
     }
 }
 

@@ -27,6 +27,8 @@ class FridgeViewModel: NSObject, ObservableObject {
     @Published var workoutRecommendation: WorkoutRecommendation?
     @Published var showingRecipeSelection = false
     @Published var isGeneratingWorkout = false
+    @Published var savedWorkouts: [WorkoutOption] = []
+    @Published var selectedWorkoutType: WorkoutType?
     
     override init() {
         // Initialize with API key from Secrets.swift
@@ -34,6 +36,7 @@ class FridgeViewModel: NSObject, ObservableObject {
         super.init()
         speechSynthesizer.delegate = self
         loadFavorites()
+        loadSavedWorkouts()
     }
     
     func analyzeFridgeImage() {
@@ -134,6 +137,82 @@ class FridgeViewModel: NSObject, ObservableObject {
                 isGeneratingWorkout = false
             }
         }
+    }
+    
+    func saveWorkout(_ workout: WorkoutOption) {
+        var updatedWorkout = workout
+        updatedWorkout.isCompleted = true
+        updatedWorkout.completedDate = Date()
+        savedWorkouts.append(updatedWorkout)
+        saveSavedWorkouts()
+        updateWeeklyProgress()
+        // Clear the workout recommendation after saving
+        workoutRecommendation = nil
+    }
+    
+    func deleteWorkout(_ workout: WorkoutOption) {
+        if let index = savedWorkouts.firstIndex(where: { $0.id == workout.id }) {
+            savedWorkouts.remove(at: index)
+            saveSavedWorkouts()
+            updateWeeklyProgress()
+        }
+    }
+    
+    func getWorkoutsForType(_ type: WorkoutType) -> [WorkoutOption] {
+        savedWorkouts.filter { $0.type == type }
+    }
+    
+    func getWeeklyProgress() -> [Bool] {
+        let calendar = Calendar.current
+        let today = Date()
+        let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+        
+        return (0..<7).map { dayOffset in
+            let date = calendar.date(byAdding: .day, value: dayOffset, to: weekStart)!
+            return savedWorkouts.contains { workout in
+                guard let completedDate = workout.completedDate else { return false }
+                return calendar.isDate(completedDate, inSameDayAs: date)
+            }
+        }
+    }
+    
+    func getMonthlyStats() -> (distance: Double, time: String, calories: Int) {
+        let totalCalories = savedWorkouts.reduce(0) { $0 + $1.caloriesBurned }
+        let totalMinutes = savedWorkouts.reduce(0) { $0 + $1.duration }
+        
+        // Calculate distance based on workout types
+        let totalDistance = savedWorkouts.reduce(0.0) { total, workout in
+            let speed: Double
+            switch workout.type {
+            case .walking: speed = 4.0 // 4 mph
+            case .running: speed = 6.0 // 6 mph
+            case .cycling: speed = 14.0 // 14 mph
+            }
+            return total + (speed * Double(workout.duration) / 60.0) // Convert to miles
+        }
+        
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        let timeString = "\(hours)h \(minutes)m"
+        
+        return (totalDistance, timeString, totalCalories)
+    }
+    
+    private func saveSavedWorkouts() {
+        if let encoded = try? JSONEncoder().encode(savedWorkouts) {
+            UserDefaults.standard.set(encoded, forKey: "SavedWorkouts")
+        }
+    }
+    
+    private func loadSavedWorkouts() {
+        if let data = UserDefaults.standard.data(forKey: "SavedWorkouts"),
+           let decoded = try? JSONDecoder().decode([WorkoutOption].self, from: data) {
+            savedWorkouts = decoded
+        }
+    }
+    
+    private func updateWeeklyProgress() {
+        // This will trigger a UI update since we're using @Published properties
     }
 }
 
